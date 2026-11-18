@@ -18,6 +18,8 @@
 
 #include <iostream>
 
+#include "../../dpi-size.h"
+
 Vst3PlugFrameProxyImpl::Vst3PlugFrameProxyImpl(
     Vst3Bridge& bridge,
     Vst3PlugFrameProxy::ConstructArgs&& args) noexcept
@@ -47,13 +49,14 @@ Vst3PlugFrameProxyImpl::resizeView(Steinberg::IPlugView* /*view*/,
         // Resize the editor wrapper window in advance. We will do another
         // resize automatically on `IPlugView::onSize()`, but this should make
         // resizes look a bit smoother.
-        bridge_.resize_editor(owner_instance_id(), *newSize);
+        const Steinberg::ViewRect host_size = editor_size_to_host(*newSize);
+        bridge_.resize_editor(owner_instance_id(), host_size);
 
         // We have to use this special sending function here so we can handle
         // calls to `IPlugView::onSize()` from this same thread (the UI thread).
         // See the docstring for more information.
         return bridge_.send_mutually_recursive_message(YaPlugFrame::ResizeView{
-            .owner_instance_id = owner_instance_id(), .new_size = *newSize});
+            .owner_instance_id = owner_instance_id(), .new_size = host_size});
     } else {
         std::cerr
             << "WARNING: Null pointer passed to 'IPlugFrame::resizeView()'"

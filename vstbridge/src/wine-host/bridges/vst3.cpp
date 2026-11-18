@@ -23,6 +23,7 @@
 #include "vst3-impls/context-menu-proxy.h"
 #include "vst3-impls/host-context-proxy.h"
 #include "vst3-impls/plug-frame-proxy.h"
+#include "../dpi-size.h"
 
 // Generated inside of the build directory
 #include <version.h>
@@ -813,8 +814,10 @@ void Vst3Bridge::run() {
                             Steinberg::ViewRect size{};
                             if (instance.plug_view_instance->plug_view->getSize(
                                     &size) == Steinberg::kResultOk) {
-                                instance.editor->resize(size.getWidth(),
-                                                        size.getHeight());
+                                const auto host_size =
+                                    editor_size_to_host(size);
+                                instance.editor->resize(host_size.getWidth(),
+                                                        host_size.getHeight());
                             }
 
                             // NOTE: There's zero reason why the window couldn't
@@ -903,8 +906,8 @@ void Vst3Bridge::run() {
                             &size);
                     });
 
-                return YaPlugView::GetSizeResponse{.result = result,
-                                                   .size = std::move(size)};
+                return YaPlugView::GetSizeResponse{
+                    .result = result, .size = editor_size_to_host(size)};
             },
             [&](YaPlugView::OnSize& request) -> YaPlugView::OnSize::Response {
                 // HACK: This function has to be run from the UI thread since
@@ -920,6 +923,9 @@ void Vst3Bridge::run() {
                     const auto& [instance, _] =
                         get_instance(request.owner_instance_id);
 
+                    // NOTE: The plugin sizes its own child window from the
+                    //       value passed here, so it gets the host-side
+                    //       (DPI scaled) size as is.
                     const tresult result =
                         instance.plug_view_instance->plug_view->onSize(
                             &request.new_size);
